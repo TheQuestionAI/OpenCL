@@ -13,12 +13,6 @@ template <typename T>
 void appendBitfield(T, T, const std::string&, std::string&);
 
 template <typename T>
-class PlatformInfo {
-public:
-    static void display(cl_platform_id platform, cl_platform_info param_name, std::string str);
-};
-
-template <typename T>
 class DeviceInfo {
 public:
     static void display(cl_device_id device, cl_device_info param_name, std::string str);
@@ -292,30 +286,58 @@ void checkOpenCLError(cl_int error) {
 }
 
 template <typename T>
-void PlatformInfo<T>::display(cl_platform_id platform, cl_platform_info param_name, std::string str) {
+void DeviceInfo<T>::display(cl_device_id device, cl_device_info param_name, std::string str) {
     size_t size;
-    checkOpenCLError( clGetPlatformInfo(platform, param_name, 0, nullptr, &size) );
+    checkOpenCLError( clGetDeviceInfo(device, param_name, 0, nullptr, &size) );
     auto info = new T[size];
-    checkOpenCLError( clGetPlatformInfo(platform, param_name, size, info, nullptr) );
+    checkOpenCLError( clGetDeviceInfo(device, param_name, size, info, nullptr) );
 
     switch(param_name) {
-        case CL_PLATFORM_NAME: {
-            auto platformName = reinterpret_cast<char*>(info);
-            std::cout << str << " : " << platformName << std::endl;
+        case CL_DEVICE_TYPE: {
+            auto deviceType = reinterpret_cast<cl_device_type*>(info);
+            appendBitfield<cl_device_type>(*deviceType, CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", str);
+            appendBitfield<cl_device_type>(*deviceType, CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", str);
+            appendBitfield<cl_device_type>(*deviceType, CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", str);
+            appendBitfield<cl_device_type>(*deviceType, CL_DEVICE_TYPE_DEFAULT, "CL_DEVICE_TYPE_DEFAULT", str);
+
+            std::cout << str << std::endl;
         }
             break;
-        case CL_PLATFORM_VENDOR: {
-            auto platformVendor = reinterpret_cast<char*>(info);
-            std::cout << str << " : " << platformVendor << std::endl;
+        case CL_DEVICE_NAME: {
+            auto deviceName = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceName << std::endl;
         }
             break;
-        case CL_PLATFORM_VERSION: {
-            // OpenCL version string. Returns the OpenCL version supported by the platform. OpenCL<space><major_version.minor_version><space><vendor-specific information>
-            auto platformSupportedOpenCLVersion = reinterpret_cast<char*>(info);
-            std::cout << str << " : " << platformSupportedOpenCLVersion << std::endl;
+        case CL_DEVICE_VENDOR: {
+            auto deviceVendor = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceVendor << std::endl;
         }
             break;
-        case CL_PLATFORM_PROFILE: {
+        case CL_DEVICE_VENDOR_ID: {
+            auto deviceVendorID = reinterpret_cast<cl_uint*>(info);
+            std::cout << str << " : " << *deviceVendorID << std::endl;
+        }
+            break;
+        case CL_DRIVER_VERSION: {
+            // OpenCL's software driver version string in the form major_number.minor_number.
+            auto deviceDriverVersion = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceDriverVersion << std::endl;
+        }
+            break;
+        case CL_DEVICE_VERSION: {
+            // OpenCL version string. Returns the OpenCL version supported by the device. OpenCL<space><major_version.minor_version><space><vendor-specific information>
+            auto deviceSupportedOpenCLVersion = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceSupportedOpenCLVersion << std::endl;
+        }
+            break;
+        case CL_DEVICE_OPENCL_C_VERSION: {
+            // OpenCL C version string. Returns the highest OpenCL C version supported by the compiler for this device that is not of type CL_DEVICE_TYPE_CUSTOM.
+            // This version string has the following format: OpenCL<space>C<space><major_version.minor_version><space><vendor-specific information>
+            auto deviceSupportedOpenCLCVersion = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceSupportedOpenCLCVersion << std::endl;
+        }
+            break;
+        case CL_DEVICE_PROFILE: {
             // OpenCL profile string. Returns the profile name supported by the device (see note). The profile name returned can be one of the following strings:
             // FULL_PROFILE - if the device supports the OpenCL specification (functionality defined as part of the core specification and does not require any extensions to be supported).
             // EMBEDDED_PROFILE - if the device supports the OpenCL embedded profile.
@@ -323,11 +345,11 @@ void PlatformInfo<T>::display(cl_platform_id platform, cl_platform_info param_na
             // If the platform profile returned is FULL_PROFILE, the OpenCL framework will support devices that are FULL_PROFILE and may also support devices that are EMBEDDED_PROFILE.
             // The compiler must be available for all devices i.e. CL_DEVICE_COMPILER_AVAILABLE is CL_TRUE.
             // If the platform profile returned is EMBEDDED_PROFILE, then devices that are only EMBEDDED_PROFILE are supported.
-            auto platformSupportedOpenCLProfile = reinterpret_cast<char*>(info);
-            std::cout << str << " : " << platformSupportedOpenCLProfile << std::endl;
+            auto deviceSupportedOpenCLProfile = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceSupportedOpenCLProfile << std::endl;
         }
             break;
-        case CL_PLATFORM_EXTENSIONS: {
+        case CL_DEVICE_EXTENSIONS: {
             // Returns a space separated list of extension names (the extension names themselves do not contain any spaces) supported by the device.
             // The following approved Khronos extension names must be returned by all device that support OpenCL C 2.0:
             //      cl_khr_byte_addressable_store
@@ -336,8 +358,363 @@ void PlatformInfo<T>::display(cl_platform_id platform, cl_platform_info param_na
             //      cl_khr_image2d_from_buffer
             //      cl_khr_depth_images
             // Please refer to the OpenCL 2.0 Extension Specification for a detailed description of these extensions.
-            auto platformSupportedOpenCLExtensions = reinterpret_cast<char*>(info);
-            std::cout << str << " : " << platformSupportedOpenCLExtensions << std::endl;
+            auto deviceSupportedOpenCLExtensions = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << deviceSupportedOpenCLExtensions << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_PLATFORM: {
+            // The platform associated with this device.
+            auto devicePlatform = reinterpret_cast<cl_platform_id*>(info);
+
+            size_t platformNameSize;
+            checkOpenCLError(clGetPlatformInfo(*devicePlatform,CL_PLATFORM_NAME,0, nullptr,&platformNameSize));
+            char* platformName = new char[platformNameSize];
+            checkOpenCLError(clGetPlatformInfo(*devicePlatform,CL_PLATFORM_NAME,platformNameSize, platformName, nullptr));
+
+            std::cout << str << " : " << platformName << std::endl;
+        }
+            break;
+        case CL_DEVICE_AVAILABLE: {
+            // Is CL_TRUE if the device is available and CL_FALSE otherwise.
+            // A device is considered to be available if the device can be expected to successfully execute commands enqueued to the device.
+            auto deviceAvailable = reinterpret_cast<cl_bool*>(info);
+            std::cout << str << " : " << (deviceAvailable ? "Yes" : "No") << std::endl;
+        }
+            break;
+        case CL_DEVICE_ADDRESS_BITS: {
+            // The default compute device address space size of the global address space specified as an unsigned integer value in bits. Currently supported values are 32 or 64 bits.
+            auto deviceAddressSpaceBits = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceAddressSpaceBits << "-bit device address space" << std::endl;
+        }
+            break;
+        case CL_DEVICE_PROFILING_TIMER_RESOLUTION: {
+            // The default compute device address space size of the global address space specified as an unsigned integer value in bits. Currently supported values are 32 or 64 bits.
+            auto deviceTimerResolution = reinterpret_cast<size_t *>(info);
+            std::cout << str << " : " << *deviceTimerResolution << " nanoseconds" << std::endl;
+        }
+        break;
+        case CL_DEVICE_REFERENCE_COUNT: {
+            // Returns the device reference count. If the device is a root-level device, a reference count of one is returned.
+            auto deviceReferenceCount = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceReferenceCount << std::endl;
+        }
+            break;
+        case CL_DEVICE_ENDIAN_LITTLE: {
+            // Is CL_TRUE if the OpenCL device is a little endian device and CL_FALSE otherwise.
+            auto deviceEndianLittle = reinterpret_cast<cl_bool *>(info);
+            std::cout << str << " : " << (*deviceEndianLittle ? "Yes" : "No") << std::endl;
+        }
+            break;
+        case CL_DEVICE_ERROR_CORRECTION_SUPPORT: {
+            // Is CL_TRUE if the device implements error correction for all accesses to compute device memory (global and constant). Is CL_FALSE if the device does not implement such error correction.
+            auto deviceErrorCorrSupport = reinterpret_cast<cl_bool *>(info);
+            std::cout << str << " : " << (*deviceErrorCorrSupport ? "Yes" : "No") << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_EXECUTION_CAPABILITIES: {
+            // Describes the execution capabilities of the device. This is a bit-field that describes one or more of the following values:
+            // CL_EXEC_KERNEL - The OpenCL device can execute OpenCL kernels.
+            // CL_EXEC_NATIVE_KERNEL - The OpenCL device can execute native kernels.
+            // The mandated minimum capability is CL_EXEC_KERNEL
+            auto deviceExecCapabilities = reinterpret_cast<cl_device_exec_capabilities*>(info);
+            appendBitfield<cl_device_exec_capabilities>(*deviceExecCapabilities, CL_EXEC_KERNEL, "CL_EXEC_KERNEL", str);
+            appendBitfield<cl_device_exec_capabilities>(*deviceExecCapabilities, CL_EXEC_NATIVE_KERNEL, "CL_EXEC_NATIVE_KERNEL", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        case CL_DEVICE_COMPILER_AVAILABLE: {
+            // Is CL_FALSE if the implementation does not have a compiler available to compile the program source.
+            // Is CL_TRUE if the compiler is available. This can be CL_FALSE for the embedded platform profile only.
+            auto deviceCompilerAvailable = reinterpret_cast<cl_bool*>(info);
+            std::cout << str << " : " << (deviceCompilerAvailable ? "Yes" : "No") << std::endl;
+        }
+            break;
+        case CL_DEVICE_LINKER_AVAILABLE: {
+            // Is CL_FALSE if the implementation does not have a linker available. Is CL_TRUE if the linker is available.
+            // This can be CL_FALSE for the embedded platform profile only. This must be CL_TRUE if CL_DEVICE_COMPILER_AVAILABLE is CL_TRUE.
+            auto deviceLinkerAvailable = reinterpret_cast<cl_bool*>(info);
+            std::cout << str << " : " << (deviceLinkerAvailable ? "Yes" : "No") << std::endl;
+        }
+            break;
+        case CL_DEVICE_BUILT_IN_KERNELS: {
+            // A semi-colon separated list of built-in kernels supported by the device. An empty string is returned if no built-in kernels are supported by the device.
+            auto deviceBuiltInKernels = reinterpret_cast<char*>(info);
+            std::cout << str << " : " << (strlen(deviceBuiltInKernels) == 0 ? "None" : deviceBuiltInKernels) << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_SINGLE_FP_CONFIG: {
+            // Describes single precision floating-point capability of the device. This is a bit-field that describes one or more of the following values:
+            // CL_FP_DENORM - denorms are supported
+            // CL_FP_INF_NAN - INF and quiet NaNs are supported
+            // CL_FP_ROUND_TO_NEAREST - round to nearest even rounding mode supported
+            // CL_FP_ROUND_TO_ZERO - round to zero rounding mode supported
+            // CL_FP_ROUND_TO_INF - round to +ve and -ve infinity rounding modes supported
+            // CL_FP_FMA - IEEE754-2008 fused multiply-add is supported
+            // CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT - divide and sqrt are correctly rounded as defined by the IEEE754 specification.
+            // CL_FP_SOFT_FLOAT - Basic floating-point operations (such as addition, subtraction, multiplication) are implemented in software.
+            // For the full profile, the mandated minimum floating-point capability for devices that are not of type CL_DEVICE_TYPE_CUSTOM is CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN.
+            // For the embedded profile, see section 10.
+            auto deviceSingleFpConfig = reinterpret_cast<cl_device_fp_config *>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_DENORM, "CL_FP_DENORM", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_INF_NAN, "CL_FP_INF_NAN", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_ROUND_TO_NEAREST, "CL_FP_ROUND_TO_NEAREST", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_ROUND_TO_ZERO, "CL_FP_ROUND_TO_ZERO", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_ROUND_TO_INF, "CL_FP_ROUND_TO_INF", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_FMA, "CL_FP_FMA", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT, "CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceSingleFpConfig, CL_FP_SOFT_FLOAT, "CL_FP_SOFT_FLOAT", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        case CL_DEVICE_DOUBLE_FP_CONFIG: {
+            // Describes double precision floating-point capability of the OpenCL device. This is a bit-field that describes one or more of the following values:
+            //      CL_FP_DENORM - denorms are supported.
+            //      CL_FP_INF_NAN - INF and NaNs are supported.
+            //      CL_FP_ROUND_TO_NEAREST - round to nearest even rounding mode supported.
+            //      CL_FP_ROUND_TO_ZERO - round to zero rounding mode supported.
+            //      CL_FP_ROUND_TO_INF - round to positive and negative infinity rounding modes supported.
+            //      CL_FP_FMA - IEEE754-2008 fused multiply-add is supported.
+            //      CL_FP_SOFT_FLOAT - Basic floating-point operations (such as addition, subtraction, multiplication) are implemented in software.
+            //      Double precision is an optional feature so the mandated minimum double precision floating-point capability is 0.
+            //      If double precision is supported by the device, then the minimum double precision floating-point capability must be: CL_FP_FMA | CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_DENORM.
+            auto deviceDoubleFpConfig = reinterpret_cast<cl_device_fp_config *>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_DENORM, "CL_FP_DENORM", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_INF_NAN, "CL_FP_INF_NAN", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_ROUND_TO_NEAREST, "CL_FP_ROUND_TO_NEAREST", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_ROUND_TO_ZERO, "CL_FP_ROUND_TO_ZERO", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_ROUND_TO_INF, "CL_FP_ROUND_TO_INF", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_FMA, "CL_FP_FMA", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT, "CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceDoubleFpConfig, CL_FP_SOFT_FLOAT, "CL_FP_SOFT_FLOAT", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_CLOCK_FREQUENCY: {
+            // The default compute device address space size of the global address space specified as an unsigned integer value in bits. Currently supported values are 32 or 64 bits.
+            auto deviceMaxClockFrequency = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceMaxClockFrequency << " Mhz" << std::endl;
+        }
+            break;
+        case CL_DEVICE_MEM_BASE_ADDR_ALIGN: {
+            // Alignment requirement (in bits) for sub-buffer offsets.
+            // The minimum value is the size (in bits) of the largest OpenCL built-in data type supported by the device (long16 in FULL profile, long16 or int16 in EMBEDDED profile) for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMemBaseAddrAlign = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceMemBaseAddrAlign << " bits" << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_COMPUTE_UNITS: {
+            auto deviceNumCUs = reinterpret_cast<cl_uint*>(info);
+            std::cout << str << " : " << *deviceNumCUs << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_GLOBAL_MEM_SIZE: {
+            auto deviceGlobalMemSize = reinterpret_cast<cl_ulong*>(info);
+            std::cout << str << " : " << *deviceGlobalMemSize << " bytes" << " | " << std::round(static_cast<double>(*deviceGlobalMemSize)/1024/1024) << " megabytes" << " | "
+                      << std::round(static_cast<double>(*deviceGlobalMemSize)/1024/1024/1024) << " gigabytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_GLOBAL_MEM_CACHE_TYPE: {
+            auto deviceGlobalMemCacheSize = reinterpret_cast<cl_device_mem_cache_type*>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceGlobalMemCacheSize, CL_NONE, "CL_NONE", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceGlobalMemCacheSize, CL_READ_ONLY_CACHE, "CL_READ_ONLY_CACHE", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceGlobalMemCacheSize, CL_READ_WRITE_CACHE, "CL_READ_WRITE_CACHE", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        case CL_DEVICE_GLOBAL_MEM_CACHE_SIZE: {
+            auto deviceGlobalMemCacheSize = reinterpret_cast<cl_ulong*>(info);
+            std::cout << str << " : " << *deviceGlobalMemCacheSize << " bytes" << " | " << static_cast<float>(*deviceGlobalMemCacheSize)/1024 << " kilobytes" <<
+            " | " << static_cast<float>(*deviceGlobalMemCacheSize)/1024/1024 << " megabytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE: {
+            auto deviceGlobalMemCacheLineSize = reinterpret_cast<cl_uint*>(info);
+            std::cout << str << " : " << *deviceGlobalMemCacheLineSize << " bytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_LOCAL_MEM_TYPE: {
+            // Type of local memory supported. This can be set to CL_LOCAL、CL_GLOBAL and CL_NONE.
+            // CL_LOCAL: implying dedicated local memory storage such as SRAM.
+            // CL_GLOBAL: implying there is no dedicated local memory, and global memory is treated as local memory.
+            // CL_NONE: For custom devices, CL_NONE can also be returned indicating no local memory support.
+            auto deviceLocalMemType = reinterpret_cast<cl_device_local_mem_type*>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceLocalMemType, CL_NONE, "CL_NONE", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceLocalMemType, CL_LOCAL, "CL_LOCAL", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceLocalMemType, CL_GLOBAL, "CL_GLOBAL", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        case CL_DEVICE_LOCAL_MEM_SIZE: {
+            // Size of local memory region in bytes. The minimum value is 32 KB for devices that are not of type CL_DEVICE_TYPE_CUSTOM
+            auto deviceLocalMemSize = reinterpret_cast<cl_ulong*>(info);
+            std::cout << str << " : " << *deviceLocalMemSize << " bytes" << " | " << static_cast<float>(*deviceLocalMemSize)/1024 << " kilobytes" << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_MEM_ALLOC_SIZE: {
+            // Max size of memory object allocation in bytes.
+            // The minimum value is max(min(1024*1024*1024, 1/4th of CL_DEVICE_GLOBAL_MEM_SIZE), 32*1024*1024) for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMaxMemAllocSize = reinterpret_cast<cl_ulong*>(info);
+            std::cout << str << " : " << *deviceMaxMemAllocSize << " bytes" << " | " << std::round(static_cast<double>(*deviceMaxMemAllocSize)/1024/1024) << " megabytes" << " | "
+                      << std::round(static_cast<double>(*deviceMaxMemAllocSize)/1024/1024/1024) << " gigabytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE: {
+            // The maximum number of bytes of storage that may be allocated for any single variable in program scope or inside a function in OpenCL C declared in the global address space.
+            // The minimum value is 64 KB.
+            auto deviceMaxGlobalVariableSize = reinterpret_cast<size_t*>(info);
+            std::cout << str << " : " << *deviceMaxGlobalVariableSize << " bytes" << " | " << std::round(static_cast<double>(*deviceMaxGlobalVariableSize)/1024/1024) << " megabytes" << " | "
+                      << std::round(static_cast<double>(*deviceMaxGlobalVariableSize)/1024/1024/1024) << " gigabytes" << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE: {
+            // Max size in bytes of a constant buffer allocation. The minimum value is 64 KB for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMaxConstantBufferSize = reinterpret_cast<cl_ulong *>(info);
+            std::cout << str << " : " << *deviceMaxConstantBufferSize << " bytes" << " | " << std::round(static_cast<double>(*deviceMaxConstantBufferSize)/1024) << " kilobytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_CONSTANT_ARGS: {
+            // Max number of arguments declared with the __constant qualifier in a kernel. The minimum value is 8 for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMaxConstantArgs = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceMaxConstantArgs << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_PARAMETER_SIZE: {
+            // Max size in bytes of all arguments that can be passed to a kernel.
+            // The minimum value is 1024 for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            // For this minimum value, only a maximum of 128 arguments can be passed to a kernel.
+            auto deviceMaxParameterSize = reinterpret_cast<size_t *>(info);
+            std::cout << str << " : " << *deviceMaxParameterSize << " bytes" << " | " << std::round(static_cast<double>(*deviceMaxParameterSize)/1024) << " kilobytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE: {
+            // Maximum preferred total size, in bytes, of all program variables in the global address space. This is a performance hint.
+            // An implementation may place such variables in storage with optimized device access. This query returns the capacity of such storage. The minimum value is 0.
+            auto deviceGlobalVariablesPrefTotalSize = reinterpret_cast<size_t *>(info);
+            std::cout << str << " : " << *deviceGlobalVariablesPrefTotalSize << " bytes" << " | " << std::round(static_cast<double>(*deviceGlobalVariablesPrefTotalSize)/1024) << " kilobytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_PRINTF_BUFFER_SIZE: {
+            // Maximum size in bytes of the internal buffer that holds the output of printf calls from a kernel. The minimum value for the FULL profile is 1 MB.
+            auto deviceKernelPrintfBufferSize = reinterpret_cast<size_t *>(info);
+            std::cout << str << " : " << *deviceKernelPrintfBufferSize << " bytes" << " | " << std::round(static_cast<double>(*deviceKernelPrintfBufferSize)/1024/1024) << " megabytes" << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_WORK_GROUP_SIZE: {
+            // Maximum number of work-items in a work-group that a device is capable of executing on a single compute unit, for any given kernel-instance running on the device.
+            // (Refer also to clEnqueueNDRangeKernel and CL_KERNEL_WORK_GROUP_SIZE). The minimum value is 1.
+            auto deviceMaxWorkGroupSize = reinterpret_cast<size_t *>(info);
+            std::cout << str << " : " << *deviceMaxWorkGroupSize << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: {
+            // Maximum dimensions that specify the global and local work-item IDs used by the data parallel execution model. (Refer to clEnqueueNDRangeKernel).
+            // The minimum value is 3 for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMaxWorkItemDim = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceMaxWorkItemDim << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_WORK_ITEM_SIZES: {
+            // Maximum number of work-items that can be specified in each dimension of the work-group to clEnqueueNDRangeKernel.
+            // Returns n size_t entries, where n is the value returned by the query for CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS.
+            // The minimum value is (1, 1, 1) for devices that are not of type CL_DEVICE_TYPE_CUSTOM.
+            auto deviceMaxWorkItemSizes = reinterpret_cast<size_t *>(info);
+
+            cl_uint deviceMaxWorkItemDim;
+            checkOpenCLError( clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(deviceMaxWorkItemDim), &deviceMaxWorkItemDim, nullptr) );
+
+            std::cout << str << " : ";
+            for(cl_uint idx = 0; idx < deviceMaxWorkItemDim; ++idx) {
+                if (idx == 0) {
+                    std::cout << "( " << deviceMaxWorkItemSizes[idx] << ", ";
+                }
+                else if (idx == deviceMaxWorkItemDim - 1) {
+                    std::cout << deviceMaxWorkItemSizes[idx] << " )" << std::endl;
+                }
+                else {
+                    std::cout << deviceMaxWorkItemSizes[idx] << ", ";
+                }
+            }
+        }
+            break;
+        case CL_DEVICE_MAX_NUM_SUB_GROUPS: {
+            // Maximum number of sub-groups in a work-group that a device is capable of executing on a single compute unit, for any given kernel-instance running on the device.
+            // The minimum value is 1. (Refer also to clGetKernelSubGroupInfo.)
+            auto deviceMaxNumSubGroups = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceMaxNumSubGroups << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_MAX_ON_DEVICE_QUEUES: {
+            // The maximum number of device queues that can be created per context. The minimum value is 1.
+            auto deviceCommandQueueMaxCount = reinterpret_cast<cl_uint *>(info);
+
+            std::cout << str << " : " << *deviceCommandQueueMaxCount << std::endl;
+        }
+            break;
+        case CL_DEVICE_MAX_ON_DEVICE_EVENTS: {
+            // The maximum number of events in use by a device queue.
+            // These refer to events returned by the enqueue_ built-in functions to a device queue or user events returned by the create_user_event built-in function that have not been released.
+            // The minimum value is 1024.
+            auto deviceCommandQueueMaxEvents = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceCommandQueueMaxEvents << std::endl;
+        }
+            break;
+        case CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE: {
+            // The max size of the device queue in bytes. The minimum value is 256 KB for the full profile and 64 KB for the embedded profile
+            auto deviceCommandQueueOnDeviceMaxSize = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceCommandQueueOnDeviceMaxSize << " bytes" << " | " << static_cast<float>(*deviceCommandQueueOnDeviceMaxSize)/1024 << " kilobytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE: {
+            // The size of the device queue in bytes preferred by the implementation. Applications should use this size for the device queue to ensure good performance. The minimum value is 16 KB.
+            auto deviceCommandQueueOnDevicePrefSize = reinterpret_cast<cl_uint *>(info);
+            std::cout << str << " : " << *deviceCommandQueueOnDevicePrefSize << " bytes" << " | " << static_cast<float>(*deviceCommandQueueOnDevicePrefSize)/1024 << " kilobytes" << std::endl;
+        }
+            break;
+        case CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES: {
+            // Describes the on device command-queue properties supported by the device. This is a bit-field that describes one or more of the following values:
+            //      CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+            //      CL_QUEUE_PROFILING_ENABLE
+            // These properties are described in the table for clCreateCommandQueueWithProperties. The mandated minimum capability is CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE..
+            auto deviceCommandQueueOnDeviceProperties = reinterpret_cast<cl_command_queue_properties *>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceCommandQueueOnDeviceProperties, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceCommandQueueOnDeviceProperties, CL_QUEUE_PROFILING_ENABLE, "CL_QUEUE_PROFILING_ENABLE", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        case CL_DEVICE_QUEUE_ON_HOST_PROPERTIES: {
+            // Describes the on host command-queue properties supported by the device. This is a bit-field that describes one or more of the following values:
+            //      CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+            //      CL_QUEUE_PROFILING_ENABLE
+            // These properties are described in the table for clCreateCommandQueueWithProperties. The mandated minimum capability is CL_QUEUE_PROFILING_ENABLE.
+            auto deviceCommandQueueOnHostProperties = reinterpret_cast<cl_command_queue_properties *>(info);
+            appendBitfield<cl_device_mem_cache_type>(*deviceCommandQueueOnHostProperties, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE", str);
+            appendBitfield<cl_device_mem_cache_type>(*deviceCommandQueueOnHostProperties, CL_QUEUE_PROFILING_ENABLE, "CL_QUEUE_PROFILING_ENABLE", str);
+
+            std::cout << str << std::endl;
+        }
+            break;
+        // ...
+        case CL_DEVICE_IMAGE_SUPPORT: {
+            // Is CL_TRUE if images are supported by the OpenCL device and CL_FALSE otherwise.
+            auto deviceImageSupport = reinterpret_cast<cl_bool *>(info);
+
+            std::cout << str << " : " << (*deviceImageSupport ? "Yes" : "No") << std::endl;
         }
             break;
         // ...
